@@ -1,0 +1,80 @@
+/*@!Encoding:1252*/
+long UDS_Request(diagRequest * diagReq)
+{
+  long ret_val = 0;
+  // Note: All the parameters must be set before using this function
+  // Example: To send 19 02 FF
+  // diagRequest ECU_QUALIFIER.FaultMemory_ReadAllIdentified read_all_dtc_by_StatusMask == 19 02
+  // Parameter - FF will be set separately by using diagSetParameter for "DtcStatusMask"
+  // Send diag request
+  diagSendRequest(diagReq);
+  // Write requested service in the report
+  testReportWriteDiagObject(diagReq);
+  // wait for diagnostic request sent
+  if(1 == testWaitForDiagRequestSent(diagReq, 5000))
+  {
+    // wait for diagnostic response
+    switch(testWaitForDiagResponse(diagReq, 10000))
+    {
+      case 0:
+        // Timeout: No response received from ECU
+        testStepFail("Timeout", "ECU didn't respond within defined time.");
+        break;
+      case 1:
+        // Response received
+        testReportWriteDiagResponse(diagReq);
+        // Check for Positive/Negative Response
+        if(diagGetLastResponseCode(diagReq) == -1)
+        {
+          // Positive response received
+          teststep("Response Received", "Response received from requested diagnostic service.");
+          ret_val = 1;
+        }
+        else
+        {
+          // Negative response received
+          testStepFail("Response Received", "Negative Response Received.");
+        }
+        break;
+      default:
+        // Internal Error: Unknown Error
+        testStepFail("Unexpected Error", "Internal/Setup Error: Verdict Unreliable.");
+    }
+  }
+  else
+  {
+    // Unable to send the Diagnostic request
+    testStepFail("Request Info", "Unable to send the diagnostic request within defined time.");
+  }
+  return ret_val;
+}
+
+void UDS_Response(diagRequest * diagReq, byte data_buffer[])
+{
+  long buffer_size, i;
+  buffer_size = DiagGetPrimitiveSize(diagReq);
+  for(i=0; i < buffer_size; i++)
+  {
+    data_buffer[i] = DiagGetPrimitiveByte(diagReq, i);
+  }
+}
+
+// Function can be used when service is requested via diag object is defined in the variables
+void DiagRequest_via_object(diagRequest * diagReq)
+{
+  if(1 == UDS_Request(diagReq))
+  {
+    testStepPass("Response Received", "Positive Response Received.");
+  }
+}
+
+// Function can be used when service is requested via bytes
+void DiagRequest_via_bytes(diagRequest * diagReq, byte request_arr[])
+{
+  diagResize(diagReq, elcount(request_arr));
+  diagSetPrimitiveData(diagReq, request_arr, elcount(request_arr));
+  if(1 == UDS_Request(diagReq))
+  {
+    testStepPass("Response Received", "Positive Response Received");
+  }
+}

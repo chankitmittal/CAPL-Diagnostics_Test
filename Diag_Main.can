@@ -1,0 +1,13 @@
+/*@!Encoding:1252*/
+includes
+{
+  #include "Diag_Lib.cin"
+}
+
+variables
+{
+}
+
+void maintest()
+{
+}
