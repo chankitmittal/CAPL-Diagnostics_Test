@@ -1,0 +1,252 @@
+/*@!Encoding:1252*/
+int HexCharToInt(char c)
+{
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+  return 0; 
+}
+
+byte ParseHexByte(char str[], int startIndex)
+{
+  return (byte)((HexCharToInt(str[startIndex]) * 16) + HexCharToInt(str[startIndex + 1]));
+}
+
+int PreProcessS19ToBin(char filename[])
+{
+  dword inFileHandle;
+  dword outFileHandle;
+  char line[1024];
+  byte lineDataBuffer[512];
+  int byteCount, dataBytesCount, i;
+  int ret_status = 0;
+  totalBytesExtracted = 0;
+
+  inFileHandle = openFileRead(filename, 0);
+  outFileHandle = openFileWrite("payload.bin", 1);
+
+  if (inFileHandle != 0 && outFileHandle != 0)
+  {
+    testStep("Flash File", "Pre-processing S19 file... please wait.");
+
+    while (fileGetString(line, elCount(line), inFileHandle) == 1)
+    {
+      // Process only S3 Data Records
+      if (line[0] == 'S' && line[1] == '3')
+      {
+        byteCount = ParseHexByte(line, 2);
+        
+        // Subtract 4 bytes for the address and 1 byte for the checksum
+        dataBytesCount = byteCount - 5; 
+
+        // Extract pure data into our temporary line buffer
+        for (i = 0; i < dataBytesCount; i++)
+        {
+          // S3 payload starts at index 12
+          lineDataBuffer[i] = ParseHexByte(line, 12 + (i * 2));
+        }
+
+        // Instantly dump this line's data into the binary file
+        fileWriteBinaryBlock(lineDataBuffer, dataBytesCount, outFileHandle);
+        totalBytesExtracted += dataBytesCount;
+      }
+    }
+    
+    fileClose(inFileHandle);
+    fileClose(outFileHandle);
+    ret_status = 1;
+    testStep("Flash File", "Pre-processing complete. Extracted %d pure data bytes.", totalBytesExtracted);
+  }
+  else
+  {
+    testStepWarning("Error", "Could not open input or output file for pre-processing.");
+  }
+  return ret_status;
+}
+
+int PreProcessHexToBin(char filename[])
+{
+  dword inFileHandle;
+  dword outFileHandle;
+  char line[1024];
+  byte lineDataBuffer[512];
+  int byteCount, recordType, i;
+  int ret_status = 0;
+  totalBytesExtracted = 0;
+
+  inFileHandle = openFileRead(filename, 0); 
+  outFileHandle = openFileWrite("payload.bin", 1); 
+
+  if (inFileHandle != 0 && outFileHandle != 0)
+  {
+    testStep("Flash File", "Pre-processing Intel HEX file... please wait.");
+
+    while (fileGetString(line, elCount(line), inFileHandle) == 1)
+    {
+      // Every valid Intel HEX line starts with a colon
+      if (line[0] == ':')
+      {
+        // 1. Extract Byte Count (at index 1 and 2)
+        byteCount = ParseHexByte(line, 1);
+        
+        // 2. Extract Record Type (at index 7 and 8)
+        recordType = ParseHexByte(line, 7);
+
+        // 3. Process only Data Records (Type 00)
+        if (recordType == 0)
+        {
+          // Extract pure data into our temporary line buffer
+          for (i = 0; i < byteCount; i++)
+          {
+            // Data payload in Intel HEX starts at index 9
+            lineDataBuffer[i] = ParseHexByte(line, 9 + (i * 2));
+          }
+
+          // Instantly dump this line's data into the binary file
+          fileWriteBinaryBlock(lineDataBuffer, byteCount, outFileHandle);
+          totalBytesExtracted += byteCount;
+        }
+        // 4. Stop reading if we hit the End of File Record (Type 01)
+        else if (recordType == 1)
+        {
+          break; 
+        }
+      }
+    }
+    fileClose(inFileHandle);
+    fileClose(outFileHandle);
+    ret_status = 1;
+    testStep("Flash File", "Pre-processing complete. Extracted %d pure data bytes.", totalBytesExtracted);
+  }
+  else
+  {
+    testStepWarning("Error", "Could not open input or output file for pre-processing.");
+  }
+  return ret_status;
+}
+
+int PreProcessFirmwareFile(char filename[])
+{
+  dword fileHandle;
+  char firstLine[256];
+  int ret_status = 0;
+  
+  // Open the file in ASCII mode (0)
+  fileHandle = openFileRead(filename, 0); 
+  
+  if (fileHandle != 0)
+  {
+    // Read first line
+    if (fileGetString(firstLine, elCount(firstLine), fileHandle) == 1)
+    {
+      fileClose(fileHandle); // Close it immediately, the sub-functions will re-open it
+      
+      // Auto-Detect Logic
+      if (firstLine[0] == 'S')
+      {
+        testStep("Flash File type", "Detected Motorola S-Record format.");
+        ret_status = PreProcessS19ToBin(filename);
+      }
+      else if (firstLine[0] == ':')
+      {
+        testStep("Flash File type", "Detected Intel HEX format.");
+        ret_status = PreProcessHexToBin(filename);
+      }
+      else
+      {
+        testStepWarning("Error", "Unknown file format. The file must start with 'S' or ':'.");
+      }
+    }
+    else
+    {
+      testStepWarning("Error", "The file is empty.");
+      fileClose(fileHandle);
+    }
+  }
+  else
+  {
+    testStepWarning("Error", "Could not open file %s. Check the path.", filename);
+  }
+  return ret_status;
+}
+
+int StartTransferData() 
+{
+  int transferResult = 0;
+  binaryFileHandle = openFileRead("payload.bin", 1);
+  
+  if (binaryFileHandle != 0)
+  {
+    testStep("Transfer DATA", "Starting 0x36 Data Transfer stream...");
+    
+    flashState = STATE_TRANSFER_DATA;
+    blockSequenceCounter = 1; 
+    
+    // Call the newly refactored loop
+    transferResult = SendAllDataBlocks(); 
+  }
+  else
+  {
+    testStepFail("Binary File Processing", "Payload.bin not found!");
+  }
+  return transferResult;
+}
+
+int SendAllDataBlocks()
+{
+  byte fileDataBuffer[4096];
+  byte diag_request_byte[4096]; 
+  dword bytesRead = 0;
+  int i;
+  int total_bytes;
+  int ret_status = 1;
+
+  // The loop runs continuously as long as there is data left in the file
+  while ((bytesRead = fileGetBinaryBlock(fileDataBuffer, maxDataBytesPerBlock, binaryFileHandle)) > 0)
+  {
+    total_bytes = bytesRead + 2;
+    
+    // Construct the UDS 0x36 message
+    diag_request_byte[0] = 0x36;                  
+    diag_request_byte[1] = blockSequenceCounter;  
+
+    for (i = 0; i < bytesRead; i++)
+    {
+      diag_request_byte[i + 2] = fileDataBuffer[i];
+    }
+
+    // Send to ECU
+    ret_status = DiagRequest_via_bytes_WithFixedLengthReturnType(diag_request_obj, diag_request_byte, total_bytes);
+    
+    if(1 == ret_status)
+    {
+      testStep("Transfer data", "Sent block 0x%02X (%d bytes of data)", blockSequenceCounter, bytesRead);
+      
+      // Handle the counter rollover
+      if (blockSequenceCounter == 0xFF)
+      {
+        blockSequenceCounter = 0x00; 
+      }
+      else
+      {
+        blockSequenceCounter++; 
+      }
+    }
+    else
+    {
+      testStepFail("Transfer data", "Failed to send block 0x%02X. ECU rejected the request.", blockSequenceCounter);
+      break; // Exit the loop immediately if a block fails
+    }
+  }
+
+  // Cleanup after the loop finishes (either successfully or via error break)
+  if (bytesRead == 0 && ret_status == 1)
+  {
+    testStep("Transfer data Status", "End of file reached. Transitioning to 0x37 Request Transfer Exit.");
+  }
+  
+  fileClose(binaryFileHandle);
+  flashState = STATE_IDLE; 
+  
+  return ret_status;
+}
