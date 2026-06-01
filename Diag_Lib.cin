@@ -1,4 +1,9 @@
 /*@!Encoding:1252*/
+includes
+{
+  #include "Preprocess_Flash_file.cin"
+}
+
 long UDS_Request(diagRequest * diagReq)
 {
   long ret_val = 0;
@@ -77,4 +82,509 @@ void DiagRequest_via_bytes(diagRequest * diagReq, byte request_arr[])
   {
     testStepPass("Response Received", "Positive Response Received");
   }
+}
+
+// Function can be used when service is requested via bytes with Fixed length
+// Return status for further execution
+int DiagRequest_via_bytes_WithFixedLengthReturnType(diagRequest * diagReq, byte request_arr[], int total_length)
+{
+  int ret = 0;
+  diagResize(diagReq, total_length);
+  diagSetPrimitiveData(diagReq, request_arr, total_length);
+  if(1 == UDS_Request(diagReq))
+  {
+    testStepPass("Response Received", "Positive Response Received");
+    ret = 1;
+  }
+  return ret;
+}
+
+void default_session()
+{
+  // Diagnostic session control - default session
+  // SID: 0x10
+  // sub-function: 0x01
+  byte diag_request_byte[2] = {0x10, 0x01};
+  DiagRequest_via_bytes(diag_request_obj, diag_request_byte);
+}
+
+void programming_session()
+{
+  // Diagnostic session control - Programming session
+  // SID: 0x10
+  // sub-function: 0x02
+  byte diag_request_byte[2] = {0x10, 0x02};
+  DiagRequest_via_bytes(diag_request_obj, diag_request_byte);
+}
+
+void extended_session()
+{
+  // Diagnostic session control - Extended Session
+  // SID: 0x10
+  // sub-function: 0x03
+  byte diag_request_byte[2] = {0x10, 0x03};
+  DiagRequest_via_bytes(diag_request_obj, diag_request_byte);
+}
+
+void hard_reset()
+{
+  // ECU Reset - Hard Reset
+  // SID: 0x11
+  // sub-function: 0x01
+  byte diag_request_byte[2] = {0x11, 0x01};
+  DiagRequest_via_bytes(diag_request_obj, diag_request_byte);
+}
+
+void KeyOffOnReset()
+{
+  // ECU Reset - Key off on
+  // SID: 0x11
+  // sub-function: 0x02
+  byte diag_request_byte[2] = {0x11, 0x02};
+  DiagRequest_via_bytes(diag_request_obj, diag_request_byte);
+}
+
+void soft_reset()
+{
+  // ECU Reset - Soft reset
+  // SID: 0x11
+  // sub-function: 0x03
+  byte diag_request_byte[2] = {0x11, 0x03};
+  DiagRequest_via_bytes(diag_request_obj, diag_request_byte);
+}
+
+void clear_Diagnostic_information(dword dtc_number)
+{
+  // Clear Diagnostic information
+  // SID: 0x14
+  // Parameter - DTC Number. Example - 0x5287C6
+  // Or Clear all DTCs - 0xFFFFFF
+  byte diag_request_byte[4];
+  diag_request_byte[0] = 0x14;
+  diag_request_byte[1] = (dtc_number >> 16) & 0xFF;
+  diag_request_byte[2] = (dtc_number >> 8) & 0xFF;
+  diag_request_byte[3] = dtc_number & 0xFF;
+  DiagRequest_via_bytes(diag_request_obj, diag_request_byte);
+}
+
+void readDtcInformationWithSubFuncOnly(byte sub_function)
+{
+  // Read DTC Information - With Sub function only
+  // SID: 0x19
+  // Sub-function - 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x13, 0x14
+  byte diag_request_byte[2];
+  diag_request_byte[0] = 0x19;
+  diag_request_byte[1] = sub_function;
+  
+  DiagRequest_via_bytes(diag_request_obj, diag_request_byte);
+}
+
+void readDtcInformationWithStatusMask(byte sub_function, byte dtcStatusMask)
+{
+  // Read DTC Information - Sub-function + DTC Status Mask
+  // SID: 0x19
+  // Sub-function - 0x01, 0x02, 0x0F, 0x11, 0x12
+  byte diag_request_byte[3];
+  diag_request_byte[0] = 0x19;
+  diag_request_byte[1] = sub_function;
+  diag_request_byte[2] = dtcStatusMask;
+  
+  DiagRequest_via_bytes(diag_request_obj, diag_request_byte);
+}
+
+void readDtcInformationWithDtcAndRecord(byte sub_function, dword dtcNumber, byte recordNumber)
+{
+  // Read DTC Information - Sub-function + DTC Number + Record Number
+  // SID: 0x19
+  // Sub-function - 0x04, 0x06, 0x10
+  byte diag_request_byte[6];
+  diag_request_byte[0] = 0x19;
+  diag_request_byte[1] = sub_function;
+  diag_request_byte[2] = (dtcNumber >> 16) & 0xFF;
+  diag_request_byte[3] = (dtcNumber >> 8) & 0xFF;
+  diag_request_byte[4] = dtcNumber & 0xFF;
+  diag_request_byte[5] = recordNumber;
+  
+  DiagRequest_via_bytes(diag_request_obj, diag_request_byte);
+}
+
+void readDtcInformationWithSeverity(byte sub_function, byte severityMask, byte statusMask)
+{
+  // Read DTC Information - Sub-function + Serverity Mask + DTC Status Mask
+  // SID: 0x19
+  // Sub-function - 0x07, 0x08
+  byte diag_request_byte[4];
+  diag_request_byte[0] = 0x19;
+  diag_request_byte[1] = sub_function;
+  diag_request_byte[2] = severityMask;
+  diag_request_byte[3] = statusMask;
+  
+  DiagRequest_via_bytes(diag_request_obj, diag_request_byte);
+}
+
+void read_did_by_identifier(word did_number)
+{
+  // Read DID by Identifier
+  // SID: 0x22
+  // Parameter - DID number. Example: F120
+  byte diag_request_byte[3];
+  diag_request_byte[0] = 0x22;
+  diag_request_byte[1] = (did_number >> 8) & 0xFF;
+  diag_request_byte[2] = did_number & 0xFF;
+  DiagRequest_via_bytes(diag_request_obj, diag_request_byte);
+}
+
+void read_memory_by_address(byte ALFID, dword memory_address, dword memory_size)
+{
+  // Read Memory by Address
+  // SID: 23
+  // ALFID: Single byte
+  // High nibble (bits 7-4): Number of bytes used to define the Memory Size.
+  // Low nibble (bits 3-0): Number of bytes used to define the Memory Address.
+  // Example: 0x24 means the size is 2 bytes, and the address is 4 bytes.
+  // Memory Address: The starting address (length defined by ALFID).
+  // Memory Size: How many bytes to read (length defined by ALFID).
+  byte diag_request_byte[20];   // Max payload 20 bytes
+  int i;
+  int index = 0;
+  byte address_len;
+  byte size_len;
+  int total_length;
+  
+  // Extract lengths from ALFID
+  address_len = ALFID & 0x0F;          // Low nibble
+  size_len    = (ALFID >> 4) & 0x0F;   // High nibble
+
+  // Calculate total diagnostic request length
+  total_length = 2 + address_len + size_len;  // 23 12 XX XX YY
+  // 1. Set SID and ALFID
+  diag_request_byte[index++] = 0x23;
+  diag_request_byte[index++] = ALFID;
+  // 2. Pack the Memory Address
+  for (i = address_len - 1; i >= 0; i--) 
+  {
+    diag_request_byte[index++] = (memory_address >> (i * 8)) & 0xFF;
+  }
+  // 3. Pack the Memory Size
+  for (i = size_len - 1; i >= 0; i--) 
+  {
+    diag_request_byte[index++] = (memory_size >> (i * 8)) & 0xFF;
+  }
+  
+  DiagRequest_via_bytes_WithFixedLengthReturnType(diag_request_obj, diag_request_byte, total_length);
+}
+
+int security_access_unlock(byte seed_level, byte key_level)
+{
+  // Security Access - Seed Request
+  // SID: 0x27
+  // Seed security level: 0x01, 0x03, 0x11, 0x33 based on the security and requirements
+  // Key security level: 0x02, 0x04, 0x12, 0x34 based on the security and requirements
+  int i = 0;
+  byte seed_diag_request[2];
+  int ret_seed_status;
+  int ret_key_gen_status;
+  int ret_key_status;
+  byte temp_seed_bytes[seed_response_arr_size];
+  byte key_diag_request[key_request_arr_size];
+  byte seed_bytes[seed_arr_size];
+  byte key_bytes[key_arr_size];
+  int ret_status = 0;
+  
+  // Prepare Seed request
+  seed_diag_request[0] = 0x27;
+  seed_diag_request[1] = seed_level;
+  // Prepare Key request
+  ret_seed_status = DiagRequest_via_bytes_WithFixedLengthReturnType(diag_request_obj, seed_diag_request, elcount(seed_diag_request));
+  if(ret_seed_status == 1)
+  {
+    // Seed generation successful
+    testStep("Seed Generation", "Seed is successfully generated.");
+    UDS_Response(diag_request_obj, temp_seed_bytes);
+    // Extract Seed bytes from resposne
+    for(i = 0; i < seed_arr_size; i++)
+    {
+      seed_bytes[i] = temp_seed_bytes[i+2];
+    }
+    // Generate key usign SEED and Security.dll attached under Diagnostic/ISO TP config
+    ret_key_gen_status = diagGenerateKeyFromSeed(ECU_Name, seed_bytes, seed_arr_size, seed_level, "", "", key_bytes, key_arr_size, KeyActualSize);
+    if(0 == ret_key_gen_status)
+    {
+      // Key is generated successfully
+      teststep("Key Generation", "Key is successfully generated.");
+      key_diag_request[0] = 0x27;
+      key_diag_request[1] = key_level;
+      for(i = 0; i < key_arr_size; i++)
+      {
+        key_diag_request[i+2] = key_bytes[i];
+      }
+      testWaitForTimeoutSilent(1000);
+      ret_key_status = DiagRequest_via_bytes_WithFixedLengthReturnType(diag_request_obj, key_diag_request, elcount(key_diag_request));
+      if(1 == ret_key_status)
+      {
+        // ECU Unlock
+        ret_status = 1;
+        testStepPass("Security Unlock Status", "ECU is unlocked !! Generated Key is correct.");
+      }
+      else
+      {
+        // ECU remains lock
+        testStepFail("Security Unlock Status", "ECU is locked. Generated key is not correct.");
+      }
+    }
+    else
+    {
+      testStepFail("Key Generation", "Unable to generate key. Error code: %d", ret_key_gen_status);
+    }
+  }
+  else
+  {
+    testStepFail("Seed Generation", "Unable to generate Seed !!");
+  }
+  return ret_status;
+}
+
+void communication_control(byte control_type, byte communication_type)
+{
+  /* 
+  Communication Control
+  SID: 0x28
+  sub-function: Control type
+    1. 0x00 - Enable Rx and Tx
+    2. 0x01 - Enable Rx and Disable Tx
+    3. 0x02 - Disable Rx and Enable Tx
+    4. 0x03 - Disable Rx and Tx
+  Additional byte: Communication type
+    1. 0x01 - Normal Communication Messages
+    2. 0x02 - Network Management Communication Messages
+    3. 0x03 - Normal and Network Management Communication Messages
+  */
+  byte diag_request_byte[3];
+  diag_request_byte[0] = 0x28;
+  diag_request_byte[1] = control_type;
+  diag_request_byte[2] = communication_type;
+  DiagRequest_via_bytes(diag_request_obj, diag_request_byte);
+}
+
+int write_data_by_identifier(dword did_number, byte data_bytes[])
+{
+  // Write data bt identifier
+  // SID: 0x2E
+  // DID number - Ex: F121
+  // data bytes
+  int i = 0;
+  byte diag_request_byte[255];
+  int total_length;
+  int ret_status = 0;
+  
+  // total length for diag_request_byte
+  total_length = 3 + elcount(data_bytes);
+  
+  if(total_length > elcount(diag_request_byte))
+  {
+    testStepWarning("Request Send Status", "Unable to send the diagnostic request as total length exceeds defined buffer size.");
+  }
+  else
+  {
+    // Prepare Diag request
+    diag_request_byte[0] = 0x2E;
+    diag_request_byte[1] = (did_number >> 8) & 0xFF;
+    diag_request_byte[2] = did_number & 0xFF;
+    for(i = 0; i < elcount(data_bytes); i++)
+    {
+      diag_request_byte[i+3] = data_bytes[i];
+    }
+    ret_status = DiagRequest_via_bytes_WithFixedLengthReturnType(diag_request_obj, diag_request_byte, total_length);    
+  }
+  return ret_status;
+}
+
+int routine_control(byte sub_function, word rid_number, byte data_bytes[], int data_len)
+{
+  // Routine Control
+  // SID: 0x31
+  // sub-function:
+  //    0x01 -> start
+  //    0x02 -> stop
+  //    0x03 -> result
+  // RID number - 0xFF01
+  // Optional Data bytes
+  int ret_status = 0;
+  int i;
+  int total_length;
+  byte diag_request_byte[4096];
+  
+  total_length = 4 + data_len;
+  diag_request_byte[0] = 0x31;
+  diag_request_byte[1] = sub_function;
+  diag_request_byte[2] = (rid_number >> 8) & 0xFF;
+  diag_request_byte[3] = rid_number & 0xFF;
+  for(i = 0; i < data_len; i++)
+  {
+    diag_request_byte[i+4] = data_bytes[i];
+  }
+  
+  ret_status = DiagRequest_via_bytes_WithFixedLengthReturnType(diag_request_obj, diag_request_byte, total_length);
+  return ret_status;
+}
+
+int request_download(byte dataformatID, byte ALFID, dword memory_address, dword memory_size)
+{
+  // Request download
+  // SID: 34
+  // DataFormatID: High nibble: Compression Method ; Low nibble: Encryption Method
+  // Ex: 11 for both Compression & Encryption ; Number depends on the requirements
+  // ALFID: Single byte
+  // High nibble (bits 7-4): Number of bytes used to define the Memory Size.
+  // Low nibble (bits 3-0): Number of bytes used to define the Memory Address.
+  // Example: 0x24 means the size is 2 bytes, and the address is 4 bytes.
+  // Memory Address: The starting address (length defined by ALFID).
+  // Memory Size: How many bytes to read (length defined by ALFID).
+  byte diag_request_byte[20];
+  int i;
+  int index = 0;
+  byte address_len;
+  byte size_len;
+  int total_length;
+  int ret_status;
+  
+  // Extract lengths from ALFID
+  address_len = ALFID & 0x0F;          // Low nibble
+  size_len    = (ALFID >> 4) & 0x0F;   // High nibble
+
+  // Calculate total diagnostic request length
+  total_length = 3 + address_len + size_len;  // 34 CE ALFID XX XX YY YY
+  
+  // 1. Set SID and ALFID
+  diag_request_byte[index++] = 0x34;
+  diag_request_byte[index++] = dataformatID;
+  diag_request_byte[index++] = ALFID;
+  // 2. Pack the Memory Address
+  for (i = address_len - 1; i >= 0; i--) 
+  {
+    diag_request_byte[index++] = (memory_address >> (i * 8)) & 0xFF;
+  }
+  // 3. Pack the Memory Size
+  for (i = size_len - 1; i >= 0; i--) 
+  {
+    diag_request_byte[index++] = (memory_size >> (i * 8)) & 0xFF;
+  }
+  
+  ret_status = DiagRequest_via_bytes_WithFixedLengthReturnType(diag_request_obj, diag_request_byte, total_length);
+  return ret_status;
+}
+
+int transfer_data(char file_name[])
+{
+  // Transfer data
+  // SID: 36
+  int ret_status = 0;
+  int ret_preprocess_status = 0;
+  ret_preprocess_status = PreProcessFirmwareFile(file_name);
+  if(ret_preprocess_status == 1)
+  {
+    // Start the Transfer Data sequence
+    ret_status = StartTransferData(); 
+    if (ret_status == 1)
+    {
+      testStep("Flash Process", "File transfer completed successfully.");
+    }
+    else
+    {
+      testStepFail("Flash Process", "Data transfer aborted due to an error.");
+    }
+  }
+  else
+  {
+    testStepFail("Pre-Processing Failed", "Unable to preprocess the file.");
+  }
+  return ret_status;
+}
+
+int transfer_exit()
+{
+  // Transfer Exit
+  // SID: 37
+  byte diag_request_byte[1];
+  int ret_status = 0;
+  diag_request_byte[0] = 0x37;
+  ret_status = DiagRequest_via_bytes_WithFixedLengthReturnType(diag_request_obj, diag_request_byte, elcount(diag_request_byte));
+  return ret_status;
+}
+
+void write_memory_by_address(byte ALFID, dword memory_address, dword memory_size, byte data_bytes[])
+{
+  // Write Memory by Address
+  // SID: 3D
+  // ALFID: Single byte
+  // High nibble (bits 7-4): Number of bytes used to define the Memory Size.
+  // Low nibble (bits 3-0): Number of bytes used to define the Memory Address.
+  // Example: 0x24 means the size is 2 bytes, and the address is 4 bytes.
+  // Memory Address: The starting address (length defined by ALFID).
+  // Memory Size: How many bytes to read (length defined by ALFID).
+  // Data bytes: data needs to be write in the memory
+  byte diag_request_byte[4096];   // Max payload 4096 bytes
+  int i;
+  int index = 0;
+  byte address_len;
+  byte size_len;
+  int total_length;
+  
+  // Extract lengths from ALFID
+  address_len = ALFID & 0x0F;          // Low nibble
+  size_len    = (ALFID >> 4) & 0x0F;   // High nibble
+  
+  if(address_len > 4 || size_len > 4)
+  {
+    testStepWarning("Request Send Status", "Unable to send request as address length or Memory size is greater than 4.");
+  }
+  else
+  {
+     // Calculate total diagnostic request length
+    total_length = 2 + address_len + size_len + elcount(data_bytes);  // 3D 12 XX XX YY ZZ ZZ ZZ ZZ
+    // 1. Set SID and ALFID
+    diag_request_byte[index++] = 0x3D;
+    diag_request_byte[index++] = ALFID;
+    // 2. Pack the Memory Address
+    for (i = address_len - 1; i >= 0; i--) 
+    {
+      diag_request_byte[index++] = (memory_address >> (i * 8)) & 0xFF;
+    }
+    // 3. Pack the Memory Size
+    for (i = size_len - 1; i >= 0; i--) 
+    {
+      diag_request_byte[index++] = (memory_size >> (i * 8)) & 0xFF;
+    }
+    // 4. Pack the data bytes
+    for (i = 0; i < elcount(data_bytes); i++)
+    {
+      diag_request_byte[index++] = data_bytes[i];
+    }
+    
+    DiagRequest_via_bytes_WithFixedLengthReturnType(diag_request_obj, diag_request_byte, total_length); 
+  }
+}
+
+void tester_present()
+{
+  // Tester Present
+  // SID: 0x3E
+  // sub-function: 0x00
+  byte diag_request_byte[2] = {0x3E, 0x00};
+  DiagRequest_via_bytes(diag_request_obj, diag_request_byte);
+}
+
+int control_dtc_setting(byte dtc_setting)
+{
+  // Control DTC Setting
+  // SID: 0x85
+  // sub-function:
+  // 0x01 -> DTC Setting ON
+  // 0x02 -> DTC setting OFF
+  int ret_status = 0;
+  byte diag_request_byte[2];
+  diag_request_byte[0] = 0x85;
+  diag_request_byte[1] = dtc_setting;
+  ret_status = DiagRequest_via_bytes_WithFixedLengthReturnType(diag_request_obj, diag_request_byte, elcount(diag_request_byte));
+  return ret_status;
 }
