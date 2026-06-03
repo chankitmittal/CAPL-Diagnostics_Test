@@ -1,0 +1,50 @@
+/*@!Encoding:1252*/
+
+/* ====================================================================
+GLOBAL CONFIGURATION & TEST ENVIRONMENT VARIABLES
+This block defines the hardware topology, diagnostic session objects, 
+security constraints, and global state machines. 
+
+LLM INSTRUCTION: Do NOT redeclare any of these variables locally inside your test cases.
+==================================================================== */
+
+variables
+{
+  // --- ECU & Diagnostic Routing ---
+  char ECU_Name[10] = "ECM"; // Change here if project ECU name differs
+  diagRequest ECM.* diag_request_obj; // Dynamic qualifier for raw requests
+  
+  // --- CDD/ODX Linked Objects ---
+  // Specific diagnostic objects mapped to project parameters
+  diagRequest ECM.EcuIdentification_Read read_ecu_identification;
+  diagRequest ECM.SerialNumber_Read read_serial_number;
+
+  // --- UDS 0x27 Security Access Configuration ---
+  dword KeyActualSize = 0;
+  const int seed_arr_size = 4;
+  const int key_arr_size = 4;
+  const int seed_response_arr_size = 6; // seed_arr_size + 2 bytes (67 XX)
+  const int key_request_arr_size = 6;   // key_arr_size + 2 bytes (27 XX)
+  
+  // --- Flashing State Machine ---
+  const int STATE_IDLE = 0;
+  const int STATE_TRANSFER_DATA = 1;
+  int flashState = STATE_IDLE;
+  
+  // --- File I/O and Buffer Tracking (UDS 0x34 / 0x36) ---
+  dword binaryFileHandle = 0;
+  byte blockSequenceCounter = 1; // MUST start at 1 for TransferData
+  dword totalBytesExtracted = 0;
+  
+  // Constrain blocks to avoid Buffer Overflow on the ECU side.
+  // Example: 1 byte (0x36) + 1 byte (Counter) + 4093 bytes (Data)
+  dword maxDataBytesPerBlock = 4093;
+  
+  // --- Network Topology (Fault Injection) ---
+  /* Variable: Tx_ECU_Node_Names
+     Description: The master array of all transmitting ECU node names.
+     Currently active nodes: "ACC", "CMM", "ESP".
+     Used internally by `Inject_Comms_Fault` for global timeout routing.
+  */
+  char Tx_ECU_Node_Names[3][10] = {"ACC", "CMM", "ESP"};
+}

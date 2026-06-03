@@ -2,34 +2,7 @@
 includes
 {
   #include "Diag_Lib.cin"
-}
-
-variables
-{
-  // If project has different ECU name, only change here
-  char ECU_Name[10] = "ECM";
-  dword KeyActualSize = 0;
-  // If project has different Qualifier Name in CDD/ODX, Change the qualifier name
-  diagRequest ECM.* diag_request_obj;
-  // Seed and key size is 4. If project has different number, Only change here
-  const int seed_arr_size = 4;
-  const int key_arr_size = 4;
-  const int seed_response_arr_size = 6; // seed_arr_size + 2 bytes (67 XX)
-  const int key_request_arr_size = 6; // key_arr_size + 2 bytes (27 XX)
-  
-  // Flashing States
-  const int STATE_IDLE = 0;
-  const int STATE_TRANSFER_DATA = 1;
-  int flashState = STATE_IDLE;
-  
-  // File and Buffer Tracking
-  dword binaryFileHandle = 0;
-  byte blockSequenceCounter = 1; // MUST start at 1
-  dword totalBytesExtracted = 0;
-  
-  // Example: Assume the ECU responded to 0x34 saying it can handle 4093 bytes total.
-  // This means: 1 byte (0x36) + 1 byte (Counter) + 4093 bytes (Data)
-  dword maxDataBytesPerBlock = 4093;
+  #include "Global_Variables.cin"
 }
 
 void maintest()
