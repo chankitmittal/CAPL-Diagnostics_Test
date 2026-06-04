@@ -509,6 +509,10 @@ void communication_control(byte control_type, byte communication_type)
   | 0x01: Enable Rx and Disable Tx  | 0x02: Network Management Comm Messages       |
   | 0x02: Disable Rx and Enable Tx  | 0x03: Normal and Network Management Messages |
   | 0x03: Disable Rx and Tx         |                                              |
+  EXAMPLES OF EXACT USAGE:
+  communication_control(0x03, 0x01); // Disable Rx and Tx for Normal Communication
+  communication_control(0x00, 0x03); // Enable Rx and Tx for BOTH Normal and NM
+  communication_control(0x01, 0x02); // Enable Rx and Disable Tx for Network Management
   */
   byte diag_request_byte[3];
   diag_request_byte[0] = 0x28;
@@ -768,6 +772,12 @@ void tester_present(byte suppress_response)
   |----------------------------|----------------------------------------------------------|
   | 1                          | Default. Suppresses the ECU's response (Sub-function 0x80) |
   | 0                          | Requires the ECU to send a response (Sub-function 0x00)    |
+  CRITICAL RULE: The underlying wrapper handles all execution and wait times automatically. 
+  Do NOT use sleep(), testWaitForTimeout(), or manual response checks after calling this.
+
+  EXAMPLES OF EXACT USAGE:
+  tester_present(1); // Send Tester Present with Suppress Positive Response (SPR) enabled
+  tester_present(0); // Send Tester Present and wait for the ECU's positive response
   */
   
   byte diag_request_byte[2];
